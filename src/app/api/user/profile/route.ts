@@ -20,9 +20,8 @@ export async function PATCH(req: Request) {
     const result = profileSchema.safeParse(body);
 
     if (!result.success) {
-      // @ts-ignore
       return NextResponse.json(
-        { message: result.error.errors[0].message },
+        { message: result.error.issues[0]?.message || "Invalid inputs" },
         { status: 400 }
       );
     }

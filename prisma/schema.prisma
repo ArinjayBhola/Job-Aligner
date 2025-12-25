@@ -52,6 +52,7 @@ model User {
   sessions      Session[]
   resumes       Resume[]
   analyses      JobAnalysis[]
+  applications  JobApplication[]
 }
 
 model VerificationToken {
@@ -123,4 +124,33 @@ model Subscription {
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model JobApplication {
+  id          String            @id @default(cuid())
+  userId      String
+  
+  company     String
+  position    String
+  location    String?
+  salary      String?
+  jobUrl      String?
+  description String?           @db.Text
+  
+  status      ApplicationStatus @default(WISHLIST)
+  fitScore    Int?
+  
+  appliedAt   DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum ApplicationStatus {
+  WISHLIST
+  APPLIED
+  INTERVIEW
+  OFFER
+  REJECTED
 }

@@ -2,31 +2,37 @@
 
 import { ProfileForm } from "@/components/settings/profile-form";
 import { BillingSection } from "@/components/settings/billing-section";
+import { User, CreditCard } from "lucide-react";
 
 export default function SettingsPage() {
     return (
-        <div className="flex-1 space-y-8 p-8 pt-6">
-            <div className="flex items-center justify-between space-y-2">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Settings</h2>
-                    <p className="text-muted-foreground">
-                        Manage your account settings and preferences.
-                    </p>
-                </div>
+        <div className="max-w-4xl mx-auto space-y-10 animate-fade-in pb-10 pt-4">
+            <div className="space-y-4">
+                <h1 className="text-4xl font-bold tracking-tight text-foreground">Account Settings</h1>
+                <p className="text-muted-foreground text-lg max-w-2xl">
+                    Manage your profile, billing preferences, and account security.
+                </p>
             </div>
             
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-                <div className="space-y-8 lg:col-span-2">
+            <div className="space-y-8">
+                {/* Profile Section */}
+                <section className="space-y-4 animate-slide-up" style={{ animationDelay: "100ms" }}>
+                    <div className="flex items-center gap-2 text-xl font-bold border-b border-border/40 pb-2 text-foreground/80">
+                        <User className="w-5 h-5 text-primary" />
+                        <h2>Profile Information</h2>
+                    </div>
+                    {/* Components are self-contained Cards now */}
                     <ProfileForm />
+                </section>
+
+                {/* Billing Section */}
+                <section className="space-y-4 animate-slide-up" style={{ animationDelay: "200ms" }}>
+                    <div className="flex items-center gap-2 text-xl font-bold border-b border-border/40 pb-2 text-foreground/80">
+                        <CreditCard className="w-5 h-5 text-purple-500" />
+                        <h2>Billing & Credits</h2>
+                    </div>
                     <BillingSection />
-                </div>
-                
-                {/* Could add another column for other settings like notifications/integrations */}
-                {/* 
-                <div className="space-y-6">
-                     <Card>...</Card>
-                </div> 
-                */}
+                </section>
             </div>
         </div>
     );

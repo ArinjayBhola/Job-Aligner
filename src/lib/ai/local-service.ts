@@ -1,78 +1,56 @@
 import { AIService, AIAnalysisResult } from "./service";
-import { pipeline } from "@xenova/transformers";
 import { cosineSimilarity } from "@/lib/utils";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { AIOrchestrator } from "./orchestrator";
 
-// Singleton for the extractor to avoid reloading model
-let extractor: any = null;
+// Initialize Orchestrator securely on server-side
+const orchestrator = new AIOrchestrator({
+  geminiKey: process.env.GOOGLE_GEMINI_API_KEY,
+  huggingFaceKey: process.env.HUGGINGFACE_API_KEY,
+});
 
-async function getExtractor() {
-  if (!extractor) {
-    extractor = await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2");
-  }
-  return extractor;
-}
-
-export class LocalAIService implements AIService {
+export class HybridAIService implements AIService {
+  
   async calculateMatchScore(resumeText: string, jobDescription: string): Promise<number> {
     try {
-      const extractor = await getExtractor();
-      
-      const limit = 1500;
-      const resVec = await extractor(resumeText.slice(0, limit), { pooling: "mean", normalize: true });
-      const jobVec = await extractor(jobDescription.slice(0, limit), { pooling: "mean", normalize: true });
-      
-      const score = cosineSimilarity(Array.from(resVec.data), Array.from(jobVec.data));
-      return Math.round(((score + 1) / 2) * 100);
+       // Truncate to avoid token limits for basic embedding
+       const limit = 1000; 
+       const [resVec, jobVec] = await Promise.all([
+         orchestrator.getEmbedding(resumeText.slice(0, limit)),
+         orchestrator.getEmbedding(jobDescription.slice(0, limit))
+       ]);
+
+       if (resVec.length === 0 || jobVec.length === 0) return 0;
+
+       const score = cosineSimilarity(resVec, jobVec);
+       return Math.round(((score + 1) / 2) * 100);
     } catch (error) {
-      console.error("Embedding Error:", error);
+      console.error("Match Score Error:", error);
       return 0;
     }
   }
 
   async generateTailoredResume(resumeText: string, jobDescription: string): Promise<AIAnalysisResult> {
-    const score = await this.calculateMatchScore(resumeText, jobDescription);
-    
-    if (!process.env.GOOGLE_GEMINI_API_KEY) {
-      return {
-        score,
-        tailoredContent: `### Tailored Resume (Mock)\n\n**Note: Configure GOOGLE_GEMINI_API_KEY to get real generation.**\n\n${resumeText.slice(0, 200)}...`,
-        missingKeywords: ["React", "TypeScript", "Next.js"],
-      };
-    }
-    
-    try {
-      const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    // Parallelize score calculation and tailoring for speed
+    const scorePromise = this.calculateMatchScore(resumeText, jobDescription);
+    const contentPromise = orchestrator.tailorResume(resumeText, jobDescription);
 
-      const prompt = `You are an expert Resume Tailor. Rewrite the following RESUME to match the JOB DESCRIPTION.
-      
-      RESUME:
-      ${resumeText}
+    const [score, tailoredContent] = await Promise.all([scorePromise, contentPromise]);
 
-      JOB DESCRIPTION:
-      ${jobDescription}
+    return {
+      score: Math.min(score + 15, 99), // Boost score for tailored version
+      tailoredContent,
+      missingKeywords: [], // Future implementation
+    };
+  }
 
-      Output only the rewritten resume in Markdown format.`;
+  async generateInterviewQuestions(resumeText: string, jobDescription: string): Promise<{ question: string; answer: string }[]> {
+    return await orchestrator.generateInterviewQuestions(resumeText, jobDescription);
+  }
 
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const content = response.text();
-      
-      return {
-        score: Math.min(score + 20, 99),
-        tailoredContent: content,
-        missingKeywords: ["Calculated dynamically in future"],
-      };
-    } catch (e) {
-      console.error("Gemini Error:", e);
-       return {
-        score,
-        tailoredContent: resumeText,
-        missingKeywords: [],
-      };
-    }
+  async extractJobDetails(description: string): Promise<{ company: string; position: string; location: string; salary: string }> {
+    return await orchestrator.extractJobDetails(description);
   }
 }
 
-export const aiService = new LocalAIService();
+// Export singleton
+export const aiService = new HybridAIService();

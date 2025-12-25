@@ -14,4 +14,9 @@ export interface AIService {
    * Generates a tailored resume and detailed report.
    */
   generateTailoredResume(resumeText: string, jobDescription: string): Promise<AIAnalysisResult>;
+
+  /**
+   * Generates interview questions and answers.
+   */
+  generateInterviewQuestions(resumeText: string, jobDescription: string): Promise<{ question: string; answer: string }[]>;
 }
